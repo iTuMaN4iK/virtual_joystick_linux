@@ -79,7 +79,7 @@ static int uhid_write(int fd, const struct uhid_event *ev) {
 
     ret = write(fd, ev, sizeof(*ev));
     if (ret < 0) {
-        fprintf(stderr, "Cannot write to uhid: %m\n");
+        fprintf(stderr, "Cannot write to uhid: %s\n", strerror(errno));
         return -errno;
     } else if (ret != sizeof(*ev)) {
         fprintf(stderr, "Wrong size written to uhid: %zd != %zu\n",
@@ -139,7 +139,7 @@ static int event(int fd) {
         fprintf(stderr, "Read HUP on uhid-cdev\n");
         return -EFAULT;
     } else if (ret < 0) {
-        fprintf(stderr, "Cannot read uhid-cdev: %m\n");
+        fprintf(stderr, "Cannot read uhid-cdev: %s\n", strerror(errno));
         return -errno;
     } else if (ret != sizeof(ev)) {
         fprintf(stderr, "Invalid size read from uhid-dev: %zd != %zu\n",
@@ -224,7 +224,7 @@ static long keyboard(int fd) {
         fprintf(stderr, "Read HUP on stdin\n");
         return -EFAULT;
     } else if (ret < 0) {
-        fprintf(stderr, "Cannot read stdin: %m\n");
+        fprintf(stderr, "Cannot read stdin: %s\n", strerror(errno));
         return -errno;
     }
 
@@ -335,7 +335,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Open uhid-cdev %s\n", path);
     fd = open(path, O_RDWR | O_CLOEXEC);
     if (fd < 0) {
-        fprintf(stderr, "Cannot open uhid-cdev %s: %m\n", path);
+        fprintf(stderr, "Cannot open uhid-cdev %s: %s\n", path, strerror(errno));
         return EXIT_FAILURE;
     }
 
@@ -355,7 +355,7 @@ int main(int argc, char **argv) {
     while (true) {
         ret = poll(pfds, 2, -1);
         if (ret < 0) {
-            fprintf(stderr, "Cannot poll for fds: %m\n");
+            fprintf(stderr, "Cannot poll for fds: %s\n", strerror(errno));
             break;
         }
         if (pfds[0].revents & POLLHUP) {
