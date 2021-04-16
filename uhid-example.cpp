@@ -1,25 +1,25 @@
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
 #include <poll.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <termios.h>
 #include <unistd.h>
 #include <linux/uhid.h>
-#include <stdint.h>
+#include <cstdint>
 
-// Dpad directions
-#define GAMEPAD_DPAD_CENTERED 0
-#define GAMEPAD_DPAD_UP 1
-#define GAMEPAD_DPAD_UP_RIGHT 2
-#define GAMEPAD_DPAD_RIGHT 3
-#define GAMEPAD_DPAD_DOWN_RIGHT 4
-#define GAMEPAD_DPAD_DOWN 5
-#define GAMEPAD_DPAD_DOWN_LEFT 6
-#define GAMEPAD_DPAD_LEFT 7
-#define GAMEPAD_DPAD_UP_LEFT 8
+enum class Joystick_Dpad_Button {
+    centered = 0,
+    up = 1,
+    up_right = 2,
+    right = 3,
+    down_right = 4,
+    down = 5,
+    down_left = 6,
+    left = 7,
+    up_left = 8
+};
 
 static unsigned char rdesc[] = {
         0x05, 0x01,    /* USAGE_PAGE (Generic Desktop) */
@@ -46,14 +46,14 @@ static unsigned char rdesc[] = {
         0x75, 0x08,            /* REPORT_SIZE (8) */
         0x81, 0x02,            /* INPUT (Data,Var,Rel) */
 
-        0x05, 0x01,							/*   USAGE_PAGE (Generic Desktop) */
-        0x09, 0x39,							/*   USAGE (Hat switch) */
-        0x09, 0x39,							/*   USAGE (Hat switch) */
-        0x15, 0x01,							/*   LOGICAL_MINIMUM (1) */
-        0x25, 0x08,							/*   LOGICAL_MAXIMUM (8) */
-        0x95, 0x02,							/*   REPORT_COUNT (2) */
-        0x75, 0x04,							/*   REPORT_SIZE (4) */
-        0x81, 0x02,							/*   INPUT (Data,Var,Abs) */
+        0x05, 0x01,                            /*   USAGE_PAGE (Generic Desktop) */
+        0x09, 0x39,                            /*   USAGE (Hat switch) */
+        0x09, 0x39,                            /*   USAGE (Hat switch) */
+        0x15, 0x01,                            /*   LOGICAL_MINIMUM (1) */
+        0x25, 0x08,                            /*   LOGICAL_MAXIMUM (8) */
+        0x95, 0x02,                            /*   REPORT_COUNT (2) */
+        0x75, 0x04,                            /*   REPORT_SIZE (4) */
+        0x81, 0x02,                            /*   INPUT (Data,Var,Abs) */
 
         0xc0,            /* END_COLLECTION */
         0xc0            /* END_COLLECTION */
@@ -91,7 +91,7 @@ static int uhid_write(int fd, const struct uhid_event *ev) {
 }
 
 static int create(int fd) {
-    struct uhid_event ev;
+    struct uhid_event ev{};
 
     memset(&ev, 0, sizeof(ev));
     ev.type = UHID_CREATE2;
@@ -109,7 +109,7 @@ static int create(int fd) {
 }
 
 static void destroy(int fd) {
-    struct uhid_event ev;
+    struct uhid_event ev{};
 
     memset(&ev, 0, sizeof(ev));
     ev.type = UHID_DESTROY;
@@ -130,7 +130,7 @@ static void handle_output(struct uhid_event *ev) {
 }
 
 static int event(int fd) {
-    struct uhid_event ev;
+    struct uhid_event ev{};
     ssize_t ret;
 
     memset(&ev, 0, sizeof(ev));
@@ -180,7 +180,7 @@ static signed char abs_hor = 0;
 static signed char abs_ver = 0;
 
 static int send_event(int fd) {
-    struct uhid_event ev;
+    struct uhid_event ev{};
 
     memset(&ev, 0, sizeof(ev));
     inputReport_t input;
@@ -192,29 +192,30 @@ static int send_event(int fd) {
     input.Y_GamePad = abs_ver;
     switch (switch_down) {
         case 2:
-            input.dPad1 = GAMEPAD_DPAD_DOWN;
+            input.dPad1 = static_cast<uint8_t>(Joystick_Dpad_Button::down);
             break;
         case 4:
-            input.dPad1 = GAMEPAD_DPAD_LEFT;
+            input.dPad1 = static_cast<uint8_t>(Joystick_Dpad_Button::left);
             break;
         case 5:
-            input.dPad1 = GAMEPAD_DPAD_CENTERED;
+            input.dPad1 = static_cast<uint8_t>(Joystick_Dpad_Button::centered);
             break;
         case 6:
-            input.dPad1 = GAMEPAD_DPAD_RIGHT;
+            input.dPad1 = static_cast<uint8_t>(Joystick_Dpad_Button::right);
             break;
         case 8:
-            input.dPad1 = GAMEPAD_DPAD_UP;
+            input.dPad1 = static_cast<uint8_t>(Joystick_Dpad_Button::up);
+            break;
+        default:
             break;
     }
     ev.type = UHID_INPUT2;
     ev.u.input2.size = sizeof(input);
-    printf("size: %d\n", sizeof(input));
     memcpy(&ev.u.input2.data, &input, sizeof(input));
     return uhid_write(fd, &ev);
 }
 
-static int keyboard(int fd) {
+static long keyboard(int fd) {
     char buf[128];
     ssize_t ret, i;
 
@@ -309,10 +310,9 @@ int main(int argc, char **argv) {
     int fd;
     const char *path = "/dev/uhid";
     struct pollfd pfds[2];
-    int ret;
-    struct termios state;
+    struct termios state{};
 
-    ret = tcgetattr(STDIN_FILENO, &state);
+    long ret = tcgetattr(STDIN_FILENO, &state);
     if (ret) {
         fprintf(stderr, "Cannot get tty state\n");
     } else {
@@ -352,7 +352,7 @@ int main(int argc, char **argv) {
     pfds[1].events = POLLIN;
 
     fprintf(stderr, "Press 'q' to quit...\n");
-    while (1) {
+    while (true) {
         ret = poll(pfds, 2, -1);
         if (ret < 0) {
             fprintf(stderr, "Cannot poll for fds: %m\n");
