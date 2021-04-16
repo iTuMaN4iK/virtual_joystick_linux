@@ -1,0 +1,1 @@
+add_executable(uhid-example uhid-example.c)
